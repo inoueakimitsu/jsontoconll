@@ -3,39 +3,24 @@
 import json
 import re
 import sys
-import MeCab
+import janome.tokenizer
 import pandas as pd
-from tokenizers import Tokenizer
-from tokenizers.models import WordPiece
-from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.trainers import WordPieceTrainer
 
 
 def PrintLine(parsew, pw, tag, mode, IOB):
 
-    # Perform processing when parsew is divided into two lines
-    if "\n" in parsew.rstrip() and mode == "crf":
-        for line in parsew.splitlines():
-            if IOB == "B":
-                print("{}\tB-{}".format("\t".join(line.rstrip().split(",")), tag))
-            elif IOB == "I":
-                print("{}\tI-{}".format("\t".join(line.rstrip().split(",")), tag))
-            else:
-                print("{}\tO".format("\t".join(line.rstrip().split(","))))
-
+    if IOB == "B":
+        print("{} B-{}".format(pw, tag)) if mode == "conll" else print(
+            "{}\tB-{}".format("\t".join(parsew), tag)
+        )
+    elif IOB == "I":
+        print("{} I-{}".format(pw, tag)) if mode == "conll" else print(
+            "{}\tI-{}".format("\t".join(parsew), tag)
+        )
     else:
-        if IOB == "B":
-            print("{} B-{}".format(pw, tag)) if mode == "conll" else print(
-                "{}\tB-{}".format("\t".join(parsew.rstrip().split(",")), tag)
-            )
-        elif IOB == "I":
-            print("{} I-{}".format(pw, tag)) if mode == "conll" else print(
-                "{}\tI-{}".format("\t".join(parsew.rstrip().split(",")), tag)
-            )
-        else:
-            print("{} O".format(pw)) if mode == "conll" else print(
-                "{}\tO".format("\t".join(parsew.rstrip().split(",")))
-            )
+        print("{} O".format(pw)) if mode == "conll" else print(
+            "{}\tO".format("\t".join(parsew))
+        )
 
 
 def PrintFormat(text, words, labels, mode):
@@ -44,15 +29,15 @@ def PrintFormat(text, words, labels, mode):
         return
     for w in text.split():
         flag = 0
-        parsew = tagger.parse(w)
+        parsew = list(tokenizer.tokenize(w))
         for tagw, tag in zip(words, labels):
 
             # match words and tag's words
             if w == tagw:
                 B = 0
 
-                for pw in parsew.split():
-                    parsew2 = tagger2.parse(pw)
+                for pw in parsew:
+                    parsew2 = list(tokenizer.tokenize(pw))
 
                     if B == 0:
                         PrintLine(parsew2, pw, tag, mode, "B")
@@ -68,8 +53,8 @@ def PrintFormat(text, words, labels, mode):
 
         # word is not tag
         if flag == 0:
-            for pw in parsew.split():
-                parsew2 = tagger2.parse(pw)
+            for pw in parsew:
+                parsew2 = tokenizer.tokenize(pw)
                 PrintLine(parsew2, pw, tag, mode, "O")
 
 
@@ -91,8 +76,7 @@ def WordsLabels(text, labels):
 
 
 if __name__ == "__main__":
-    tagger = MeCab.Tagger("-Owakati -d /usr/local/lib/mecab/dic/ipadic")
-    tagger2 = MeCab.Tagger("--eos-format= -d /usr/local/lib/mecab/dic/ipadic")
+    tokenizer = janome.tokenizer.Tokenizer(wakati=True)
 
     # Read jsonl file from doccano
     pdjson = pd.read_json(sys.argv[1], orient="records", lines=True)
